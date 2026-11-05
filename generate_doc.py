@@ -1,0 +1,1459 @@
+import subprocess
+import os
+
+html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CrowdSourced — System Architecture & Codebase Map</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 14mm 12mm 14mm 12mm;
+      @bottom-right {
+        content: counter(page);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.55;
+      font-size: 9.5pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    h1, h2, h3, h4, h5 {
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    /* Cover Page */
+    .cover-page {
+      height: 100vh;
+      min-height: 1000px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 20px 30px 20px;
+      page-break-after: always;
+      background: linear-gradient(135deg, #090d16 0%, #111827 50%, #0f172a 100%);
+      color: #f8fafc;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-page::before {
+      content: "";
+      position: absolute;
+      top: -150px;
+      right: -150px;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.18) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .cover-page::after {
+      content: "";
+      position: absolute;
+      bottom: -100px;
+      left: -100px;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .cover-header {
+      z-index: 2;
+    }
+
+    .cover-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(0, 212, 255, 0.12);
+      border: 1px solid rgba(0, 212, 255, 0.35);
+      border-radius: 20px;
+      color: #38bdf8;
+      font-size: 8.5pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 24px;
+    }
+
+    .cover-title {
+      font-size: 30pt;
+      font-weight: 800;
+      line-height: 1.15;
+      color: #ffffff;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, #93c5fd 80%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .cover-subtitle {
+      font-size: 13pt;
+      color: #94a3b8;
+      max-width: 580px;
+      line-height: 1.45;
+      margin-bottom: 28px;
+    }
+
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+      z-index: 2;
+    }
+
+    .tech-pill {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8pt;
+      color: #cbd5e1;
+    }
+
+    .cover-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      z-index: 2;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-item {
+      text-align: left;
+    }
+    .stat-val {
+      font-size: 16pt;
+      font-weight: 700;
+      color: #38bdf8;
+      font-family: 'Inter', sans-serif;
+    }
+    .stat-label {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .cover-footer {
+      z-index: 2;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 8pt;
+      color: #64748b;
+    }
+
+    /* Standard Page Elements */
+    .page {
+      page-break-after: always;
+      padding: 10px 0;
+    }
+
+    .section-header {
+      margin-bottom: 14px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .section-title {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title .sec-num {
+      background: #0284c7;
+      color: white;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 9.5pt;
+      font-weight: 700;
+    }
+
+    .section-badge {
+      font-size: 8pt;
+      font-family: 'JetBrains Mono', monospace;
+      background: #f1f5f9;
+      padding: 3px 8px;
+      border-radius: 4px;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    h3 {
+      font-size: 11pt;
+      color: #0369a1;
+      margin: 12px 0 6px 0;
+      font-weight: 700;
+    }
+
+    h4 {
+      font-size: 9.5pt;
+      color: #1e293b;
+      margin: 8px 0 4px 0;
+      font-weight: 600;
+    }
+
+    p {
+      margin-bottom: 8px;
+      color: #334155;
+      line-height: 1.5;
+    }
+
+    /* Callout Boxes */
+    .callout {
+      background: #f8fafc;
+      border-left: 3.5px solid #0284c7;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin: 10px 0;
+      font-size: 8.8pt;
+    }
+
+    .callout.purple {
+      border-left-color: #8b5cf6;
+      background: #faf5ff;
+    }
+
+    .callout.emerald {
+      border-left-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    .callout.amber {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 3px;
+      font-size: 9pt;
+    }
+
+    /* Cards & Grids */
+    .card-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      break-inside: avoid;
+    }
+
+    .card.highlight {
+      border-color: #bae6fd;
+      background: #f0f9ff;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 4px;
+    }
+
+    .card-title {
+      font-weight: 700;
+      font-size: 9pt;
+      color: #0f172a;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tag {
+      font-size: 7pt;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .tag-blue { background: #e0f2fe; color: #0369a1; }
+    .tag-green { background: #dcfce7; color: #15803d; }
+    .tag-purple { background: #f3e8ff; color: #7e22ce; }
+    .tag-amber { background: #fef3c7; color: #b45309; }
+    .tag-red { background: #fee2e2; color: #b91c1c; }
+    .tag-gray { background: #f1f5f9; color: #475569; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 8.2pt;
+      break-inside: avoid;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 8px;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 1.5px solid #94a3b8;
+      font-family: 'Inter', sans-serif;
+    }
+
+    td {
+      padding: 5.5px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    code, .code-inline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 7.8pt;
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #0369a1;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Diagram Styles */
+    .diagram-container {
+      background: #0f172a;
+      color: #f8fafc;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      border: 1px solid #334155;
+      break-inside: avoid;
+    }
+
+    .diagram-title {
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Flow step */
+    .flow-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .flow-step {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      background: rgba(255,255,255,0.04);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border-left: 3px solid #38bdf8;
+      font-size: 8pt;
+    }
+
+    .step-badge {
+      background: #0284c7;
+      color: white;
+      font-weight: 700;
+      font-size: 7.5pt;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+
+    ul, ol {
+      padding-left: 16px;
+      margin-bottom: 8px;
+    }
+
+    li {
+      margin-bottom: 3px;
+      color: #334155;
+      font-size: 8.8pt;
+    }
+
+    .footer-note {
+      font-size: 7.5pt;
+      color: #94a3b8;
+      text-align: right;
+      margin-top: 10px;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== COVER PAGE ==================== -->
+  <div class="cover-page">
+    <div class="cover-header">
+      <div class="cover-badge">⚡ Architectural Specification & Technical Guide</div>
+      <div class="cover-title">CrowdSourced</div>
+      <div class="cover-subtitle">Full-Stack Civic Issue Reporting, Geospatial Clustering (DBSCAN), and Real-Time Municipal Triaging Portal</div>
+      
+      <div class="tech-pills">
+        <span class="tech-pill">React 18 + Vite</span>
+        <span class="tech-pill">Leaflet.js + CartoDB</span>
+        <span class="tech-pill">Node.js + Express</span>
+        <span class="tech-pill">Socket.io WebSockets</span>
+        <span class="tech-pill">PostgreSQL + PostGIS</span>
+        <span class="tech-pill">Python Flask</span>
+        <span class="tech-pill">scikit-learn DBSCAN</span>
+        <span class="tech-pill">Haversine Spatial Metric</span>
+        <span class="tech-pill">JWT + Cookie Auth</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="cover-stats">
+        <div class="stat-item">
+          <div class="stat-val">3</div>
+          <div class="stat-label">Core Microservices</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">37</div>
+          <div class="stat-label">Source & Config Files</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">7</div>
+          <div class="stat-label">Relational Tables</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">100%</div>
+          <div class="stat-label">End-to-End Mapped</div>
+        </div>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); font-size: 8.5pt; color: #cbd5e1; line-height: 1.6;">
+        <strong style="color: #38bdf8;">Document Scope:</strong> This comprehensive technical document details every single source file, database schema, mathematical clustering algorithm, microservice boundary, and inter-file dependency within the <strong>CrowdSourced</strong> repository. It serves as the definitive reference manual for architects, developers, and municipal stakeholders.
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      <span>Repository: <code>/Users/kshitizbhadra/CrowdSourced</code></span>
+      <span>Engineered with Node.js, Python & React</span>
+      <span>Confidential & Proprietary</span>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 1: ARCHITECTURE BLUEPRINT ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">1</span> System Architecture Blueprint
+      </div>
+      <div class="section-badge">HIGH-LEVEL OVERVIEW</div>
+    </div>
+
+    <p>
+      <strong>CrowdSourced</strong> is an enterprise civic technology portal designed to streamline municipal grievance redressal. It eliminates duplicate reporting through spatial clustering, automates administrative routing, and provides real-time status visibility to citizens and civic departments.
+    </p>
+
+    <!-- ARCHITECTURE SVG DIAGRAM -->
+    <div class="diagram-container">
+      <div class="diagram-title">
+        <span>Distributed 3-Tier Microservices Architecture</span>
+        <span style="color:#94a3b8; font-size:7pt;">INTER-SERVICE DATA & EVENT FLOW</span>
+      </div>
+      <svg width="100%" height="220" viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg" style="font-family:'Inter', sans-serif;">
+        <!-- Defs for Gradients -->
+        <defs>
+          <linearGradient id="gClient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0284c7"/>
+            <stop offset="100%" stop-color="#0369a1"/>
+          </linearGradient>
+          <linearGradient id="gNode" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#059669"/>
+            <stop offset="100%" stop-color="#047857"/>
+          </linearGradient>
+          <linearGradient id="gPy" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7c3aed"/>
+            <stop offset="100%" stop-color="#6d28d9"/>
+          </linearGradient>
+          <linearGradient id="gDB" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#d97706"/>
+            <stop offset="100%" stop-color="#b45309"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Tier 1: Client -->
+        <rect x="20" y="20" width="190" height="180" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+        <text x="35" y="42" fill="#38bdf8" font-size="11" font-weight="700">CLIENT TIER (Frontend)</text>
+        <text x="35" y="58" fill="#94a3b8" font-size="8.5">React 18 + Vite (Port 5173)</text>
+        
+        <rect x="30" y="70" width="170" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="40" y="86" fill="#e2e8f0" font-size="8">🗺️ LiveMap (Leaflet.js)</text>
+        
+        <rect x="30" y="100" width="170" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="40" y="116" fill="#e2e8f0" font-size="8">📝 ReportIssue (GPS + Photos)</text>
+        
+        <rect x="30" y="130" width="170" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="40" y="146" fill="#e2e8f0" font-size="8">📊 AdminDashboard & Analytics</text>
+
+        <rect x="30" y="160" width="170" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="40" y="176" fill="#e2e8f0" font-size="8">⚡ AuthContext + api.js Client</text>
+
+        <!-- Arrows 1 -> 2 -->
+        <path d="M 210 75 L 270 75" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="3,3"/>
+        <text x="215" y="68" fill="#38bdf8" font-size="7">HTTP / REST</text>
+        
+        <path d="M 270 145 L 210 145" stroke="#f59e0b" stroke-width="2"/>
+        <text x="215" y="140" fill="#f59e0b" font-size="7">WebSocket (IO)</text>
+
+        <!-- Tier 2: Backend API & Gateway -->
+        <rect x="270" y="20" width="220" height="180" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+        <text x="285" y="42" fill="#34d399" font-size="11" font-weight="700">API GATEWAY (Backend)</text>
+        <text x="285" y="58" fill="#94a3b8" font-size="8.5">Node.js + Express (Port 3000)</text>
+
+        <rect x="280" y="70" width="200" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="290" y="86" fill="#e2e8f0" font-size="8">🔒 Auth & RBAC (JWT + Refresh)</text>
+
+        <rect x="280" y="100" width="200" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="290" y="116" fill="#e2e8f0" font-size="8">🚨 Issue Management & Triage</text>
+
+        <rect x="280" y="130" width="200" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="290" y="146" fill="#e2e8f0" font-size="8">🌐 Nominatim Reverse Geocoding</text>
+
+        <rect x="280" y="160" width="200" height="24" rx="4" fill="#0f172a" stroke="#334155"/>
+        <text x="290" y="176" fill="#e2e8f0" font-size="8">📡 Socket.io Room Broadcaster</text>
+
+        <!-- Arrows 2 -> 3 (Clustering) -->
+        <path d="M 490 65 L 545 65" stroke="#a78bfa" stroke-width="2"/>
+        <text x="495" y="58" fill="#a78bfa" font-size="7">POST /cluster</text>
+
+        <path d="M 545 95 L 490 95" stroke="#a78bfa" stroke-width="2" stroke-dasharray="2,2"/>
+        <text x="495" y="90" fill="#a78bfa" font-size="7">JSON Centroids</text>
+
+        <!-- Tier 3A: Python Microservice -->
+        <rect x="545" y="20" width="195" height="85" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="555" y="38" fill="#c084fc" font-size="10" font-weight="700">DBSCAN SERVICE</text>
+        <text x="555" y="52" fill="#94a3b8" font-size="8">Flask + Scikit-Learn (Port 5001)</text>
+        <text x="555" y="68" fill="#e2e8f0" font-size="7.5">• Haversine Radians Metric</text>
+        <text x="555" y="82" fill="#e2e8f0" font-size="7.5">• Spatial ε = 50m, MinPts = 2</text>
+        <text x="555" y="96" fill="#e2e8f0" font-size="7.5">• 30-Day Temporal Filtering</text>
+
+        <!-- Arrows 2 -> 3B (DB) -->
+        <path d="M 490 145 L 545 145" stroke="#fbbf24" stroke-width="2"/>
+        <text x="495" y="138" fill="#fbbf24" font-size="7">pg Pool / SQL</text>
+
+        <!-- Tier 3B: PostgreSQL DB -->
+        <rect x="545" y="115" width="195" height="85" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+        <text x="555" y="133" fill="#fbbf24" font-size="10" font-weight="700">POSTGRESQL DB</text>
+        <text x="555" y="147" fill="#94a3b8" font-size="8">Relational Store (Port 5432)</text>
+        <text x="555" y="163" fill="#e2e8f0" font-size="7.5">• pgcrypto UUID Primary Keys</text>
+        <text x="555" y="177" fill="#e2e8f0" font-size="7.5">• Issues, Clusters, Status Logs</text>
+        <text x="555" y="191" fill="#e2e8f0" font-size="7.5">• Upvotes, Users, Refresh Tokens</text>
+      </svg>
+    </div>
+
+    <div class="card-grid-3">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">1. Citizen Reporting</span>
+          <span class="tag tag-blue">Frontend</span>
+        </div>
+        <p style="font-size: 8.2pt; color: #475569;">
+          Citizens submit geotagged civic grievances with real-time GPS pin-dropping, category classification, and image attachment. Instant duplicate checks alert users if an issue was already logged within 50 meters.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">2. DBSCAN Clustering</span>
+          <span class="tag tag-purple">Microservice</span>
+        </div>
+        <p style="font-size: 8.2pt; color: #475569;">
+          Python microservice clusters incoming reports using Density-Based Spatial Clustering of Applications with Noise (DBSCAN) and great-circle Haversine distance, dynamically calculating centroid coordinates.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">3. Municipal Redressal</span>
+          <span class="tag tag-green">Backend & DB</span>
+        </div>
+        <p style="font-size: 8.2pt; color: #475569;">
+          Department officers triage grouped clusters, assign responsibilities to specialized civic departments (Roads, Sanitation, Electrical), update statuses, and broadcast live WebSocket updates to citizen maps.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 2: MASTER REPOSITORY INVENTORY ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">2</span> Master Repository Inventory
+      </div>
+      <div class="section-badge">COMPLETE CODEBASE MAP</div>
+    </div>
+
+    <p>
+      The table below provides an exhaustive index of all files in the <code>CrowdSourced</code> project, categorized by architectural layer, runtime responsibility, and language.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 28%;">File Path</th>
+          <th style="width: 14%;">Layer</th>
+          <th style="width: 13%;">Tech / Lang</th>
+          <th style="width: 45%;">Core Responsibility & Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>README.md</code></td>
+          <td><span class="tag tag-gray">Root</span></td>
+          <td>Markdown</td>
+          <td>Project overview, architecture summary, and environment quick-start guide.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/index.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Node.js (ESM)</td>
+          <td>HTTP & WebSocket gateway server, middleware pipeline, route registration, error handling.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/db/pool.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Node.js (pg)</td>
+          <td>PostgreSQL connection pool manager with auto-retry and transactional execution wrapper.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/db/schema.sql</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>PostgreSQL</td>
+          <td>DDL definitions for 7 relational tables, foreign key constraints, and 8 performance B-Tree indexes.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/db/seed.sql</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>SQL</td>
+          <td>Seed data for Bangalore municipal departments, test accounts, issue clusters, and audit logs.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/middleware/auth.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Node.js</td>
+          <td>JWT access token validator, RBAC role-checkers (<code>requireRole</code>), and optional auth parser.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/middleware/upload.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Multer / Node</td>
+          <td>Memory-buffered multipart photo upload parser and Cloudinary image upload pipeline.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/routes/auth.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Express Router</td>
+          <td>Citizen/Dept registration, bcrypt password hashing, login, refresh token rotation, logout.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/routes/issues.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Express Router</td>
+          <td>CRUD endpoints for civic issues, cluster querying, citizen upvoting, and status updates.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/routes/departments.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Express Router</td>
+          <td>Municipal department listing and department-specific issue/cluster queues.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/routes/analytics.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Express Router</td>
+          <td>Aggregated metrics: resolution times, ward breakdowns, duplicate reduction rate calculations.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/services/clusterService.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Node.js (Axios)</td>
+          <td>Orchestrates clustering by invoking Python microservice, persists clusters in DB, emits WebSocket events.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/services/socketService.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Socket.io</td>
+          <td>Broadcaster for real-time room events (<code>issue:created</code>, <code>status:changed</code>, <code>cluster:updated</code>).</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/services/nominatimService.js</code></td>
+          <td><span class="tag tag-green">Backend</span></td>
+          <td>Axios / OpenStreetMap</td>
+          <td>Reverse geocodes (lat, lng) into administrative municipal wards and formatted street addresses.</td>
+        </tr>
+        <tr>
+          <td><code>clustering/app.py</code></td>
+          <td><span class="tag tag-purple">Clustering</span></td>
+          <td>Python (Flask)</td>
+          <td>Flask microservice hosting <code>/health</code> and <code>/cluster</code> REST endpoints with CORS.</td>
+        </tr>
+        <tr>
+          <td><code>clustering/dbscan.py</code></td>
+          <td><span class="tag tag-purple">Clustering</span></td>
+          <td>scikit-learn / NumPy</td>
+          <td>DBSCAN geospatial clustering engine using Haversine spherical distance and centroid calculations.</td>
+        </tr>
+        <tr>
+          <td><code>clustering/requirements.txt</code></td>
+          <td><span class="tag tag-purple">Clustering</span></td>
+          <td>Pip Manifest</td>
+          <td>Python dependencies: <code>Flask</code>, <code>flask-cors</code>, <code>scikit-learn</code>, <code>numpy</code>, <code>python-dotenv</code>.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/main.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React DOM</td>
+          <td>React 18 root mounting script with <code>BrowserRouter</code> and strict mode wrapper.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/App.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Router</td>
+          <td>Application layout shell, global navigation bar, route declarations, and <code>AuthProvider</code>.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/context/AuthContext.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Context</td>
+          <td>Global authentication state, JWT token storage, fast demo role-switching (Admin/Dept/Citizen).</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/services/api.js</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>Axios Client</td>
+          <td>HTTP client with JWT interceptor, automated offline fallback engine, and in-memory mock store.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/mockData.js</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>JavaScript</td>
+          <td>Rich mock dataset for Bangalore civic issues, clusters, departments, and user credentials.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/index.css</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>Vanilla CSS</td>
+          <td>Design tokens, dark-mode glassmorphism theme, typography, responsive grids, Leaflet styling.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/components/Navbar.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Component</td>
+          <td>Navigation header, dynamic role badge, one-click role switcher, mobile hamburger menu.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/components/IssueCard.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Component</td>
+          <td>Interactive issue card with category icon, status badge, upvote button, and cluster count.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/components/IssueDetailModal.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Component</td>
+          <td>Full issue inspector with status transition controls, department assignment, and audit log.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/components/Toast.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Component</td>
+          <td>Animated notification toast component for success, warning, and error alerts.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/LiveMap.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React (Leaflet)</td>
+          <td>Interactive dark-mode GIS map with clustered issue markers, filters, and sidebar feed.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/ReportIssue.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Page</td>
+          <td>Citizen report form with HTML5 GPS geolocation, interactive pin selector, and photo upload.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/AdminDashboard.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Page</td>
+          <td>Municipal administrative workspace for filtering, triaging, and reassigning civic clusters.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/Analytics.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React (Chart.js)</td>
+          <td>Executive analytics with charts for category frequency, ward distribution, and triage SLA.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/MyReports.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Page</td>
+          <td>Citizen's personal issue tracking dashboard with live status indicators and audit timelines.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/AuthPage.jsx</code></td>
+          <td><span class="tag tag-blue">Frontend</span></td>
+          <td>React Page</td>
+          <td>Unified citizen/department authentication interface with pre-filled demo account buttons.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== SECTION 3: BACKEND DEEP-DIVE ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">3</span> Backend Architecture & Services Deep-Dive
+      </div>
+      <div class="section-badge">NODE.JS + EXPRESS + POSTGRESQL</div>
+    </div>
+
+    <p>
+      The backend is structured as an event-driven RESTful API and WebSocket gateway built with Node.js and ES Modules. It coordinates database transactions, external microservice calls, geocoding, and client synchronization.
+    </p>
+
+    <div class="card-grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">backend/src/index.js</span>
+          <span class="tag tag-green">Server Entry</span>
+        </div>
+        <p><strong>Primary Function:</strong> Creates the HTTP server, initializes Socket.io on CORS-enabled origins, binds middleware (CORS, Cookie Parser, JSON 10MB body limits), mounts modular API routers, and defines central error handlers.</p>
+        <p><strong>Key Code Symbols:</strong> <code>app</code>, <code>server</code>, <code>io</code>, <code>initSocket(io)</code>, <code>app.use('/api/issues', ...)</code>.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">backend/src/db/pool.js</span>
+          <span class="tag tag-green">Database Pool</span>
+        </div>
+        <p><strong>Primary Function:</strong> Configures <code>pg.Pool</code> connection manager targeting PostgreSQL with SSL and idle timeouts. Exports safe helper methods <code>query()</code> and <code>withTransaction()</code> to ensure ACID compliance during multi-table writes.</p>
+        <p><strong>Key Code Symbols:</strong> <code>pool</code>, <code>query(text, params)</code>, <code>withTransaction(callback)</code>.</p>
+      </div>
+    </div>
+
+    <h3>Database Schema & Relational Structure (<code>backend/src/db/schema.sql</code>)</h3>
+    <p>
+      The schema contains 7 tables designed with UUID primary keys and strict referential integrity.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Table Name</th>
+          <th>Primary Key</th>
+          <th>Foreign Keys</th>
+          <th>Purpose & Constraints</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>departments</code></td>
+          <td><code>id (UUID)</code></td>
+          <td>None</td>
+          <td>Municipal agencies (BBMP Roads, BESCOM, BWSSB, Solid Waste Management).</td>
+        </tr>
+        <tr>
+          <td><code>users</code></td>
+          <td><code>id (UUID)</code></td>
+          <td><code>department_id → departments.id</code></td>
+          <td>Citizens and municipal officers with bcrypt password hashes and role constraints.</td>
+        </tr>
+        <tr>
+          <td><code>issue_clusters</code></td>
+          <td><code>id (UUID)</code></td>
+          <td><code>assigned_department_id → departments.id</code></td>
+          <td>DBSCAN-clustered geographic centroids (lat, lng), category, member count, and aggregate status.</td>
+        </tr>
+        <tr>
+          <td><code>issues</code></td>
+          <td><code>id (UUID)</code></td>
+          <td><code>user_id → users.id</code>, <code>cluster_id → issue_clusters.id</code></td>
+          <td>Individual civic complaints with GPS coordinates, photos, ward names, and upvote counters.</td>
+        </tr>
+        <tr>
+          <td><code>status_logs</code></td>
+          <td><code>id (UUID)</code></td>
+          <td><code>issue_id → issues.id</code>, <code>changed_by → users.id</code></td>
+          <td>Immutable audit trail recording all status transitions, officer notes, and timestamps.</td>
+        </tr>
+        <tr>
+          <td><code>upvotes</code></td>
+          <td><code>(user_id, issue_id)</code></td>
+          <td><code>user_id → users.id</code>, <code>issue_id → issues.id</code></td>
+          <td>Composite primary key preventing duplicate voting on identical complaints.</td>
+        </tr>
+        <tr>
+          <td><code>refresh_tokens</code></td>
+          <td><code>id (UUID)</code></td>
+          <td><code>user_id → users.id</code></td>
+          <td>Cryptographic SHA-256 hashed 7-day refresh tokens enabling secure silent session renewal.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout emerald">
+      <div class="callout-title">⚡ Performance Indexes</div>
+      B-Tree indexes are explicitly defined on <code>issues(category)</code>, <code>issues(status)</code>, <code>issues(cluster_id)</code>, <code>issues(user_id)</code>, <code>issues(created_at)</code>, and <code>status_logs(issue_id)</code> to ensure sub-millisecond query performance over millions of civic records.
+    </div>
+
+    <h3>Backend Services & Route Controllers</h3>
+    <div class="card-grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">services/clusterService.js</span>
+          <span class="tag tag-green">Service</span>
+        </div>
+        <p><strong>Mechanics:</strong> Fetches all issues in a category reported within 30 days, POSTs them to the Python clustering service, and wraps results in a database transaction to create or update <code>issue_clusters</code> and link member issues. Emits <code>cluster:updated</code> over Socket.io.</p>
+        <p><strong>Exported Functions:</strong> <code>recluster(category)</code>, <code>findNearbyCluster(lat, lng, category)</code>.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">services/nominatimService.js</span>
+          <span class="tag tag-green">Service</span>
+        </div>
+        <p><strong>Mechanics:</strong> Communicates with OpenStreetMap Nominatim API via HTTP to perform reverse geocoding on GPS coordinates. Extracts administrative suburbs, neighborhoods, or quarters to auto-populate the <code>ward</code> column.</p>
+        <p><strong>Exported Functions:</strong> <code>detectWard(lat, lng)</code>.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">routes/issues.js</span>
+          <span class="tag tag-green">Router</span>
+        </div>
+        <p><strong>Mechanics:</strong> Manages issue lifecycle: <code>POST /</code> (multipart upload, duplicate check, geocode, async recluster trigger), <code>GET /</code> (pagination & filtering), <code>GET /clusters</code> (map grouping), <code>POST /:id/upvote</code>, <code>PATCH /:id/status</code>, and <code>POST /:id/assign</code>.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">routes/analytics.js</span>
+          <span class="tag tag-green">Router</span>
+        </div>
+        <p><strong>Mechanics:</strong> Generates executive reports using PostgreSQL aggregate filters: totals by status, top 10 wards by complaint volume, average resolution time (in hours) calculated from status audit logs, and duplicate reduction rate %.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 4: CLUSTERING MICROSERVICE ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">4</span> Python Spatial Clustering Microservice
+      </div>
+      <div class="section-badge">PYTHON + SCIKIT-LEARN + DBSCAN</div>
+    </div>
+
+    <p>
+      The clustering microservice (<code>/clustering</code>) is an autonomous Python service running on Flask. It solves the critical municipal challenge of <strong>citizen report duplication</strong> by applying mathematical spatial clustering over latitude and longitude coordinates.
+    </p>
+
+    <div class="card-grid-2">
+      <div class="card highlight">
+        <div class="card-header">
+          <span class="card-title">clustering/app.py</span>
+          <span class="tag tag-purple">Flask API</span>
+        </div>
+        <p><strong>Role:</strong> Hosts the microservice endpoints on port <code>5001</code>. Provides <code>GET /health</code> for container orchestration checks and <code>POST /cluster</code> for executing batch spatial clustering.</p>
+        <p><strong>Request Body:</strong> <code>{ category, issues: [{id, latitude, longitude, created_at}], eps_meters: 50, min_samples: 2, time_window_days: 30 }</code></p>
+        <p><strong>Response Body:</strong> <code>{ status: "success", cluster_count: N, clusters: [{ centroid_lat, centroid_lng, member_count, issue_ids }] }</code></p>
+      </div>
+
+      <div class="card highlight">
+        <div class="card-header">
+          <span class="card-title">clustering/dbscan.py</span>
+          <span class="tag tag-purple">Algorithm Engine</span>
+        </div>
+        <p><strong>Role:</strong> Pure mathematical engine implementing Density-Based Spatial Clustering of Applications with Noise (DBSCAN) using the spherical Haversine metric.</p>
+        <p><strong>Key Steps:</strong></p>
+        <ol style="font-size: 8pt; padding-left: 14px;">
+          <li>Temporal sliding window filtering (default 30 days).</li>
+          <li>Coordinate conversion from degrees to radians.</li>
+          <li>Epsilon conversion: \(\epsilon_{\text{rad}} = \frac{\text{eps\_meters}}{R_{\text{earth}}}\) with \(R = 6,371,000\text{m}\).</li>
+          <li>DBSCAN execution with <code>metric='haversine'</code> and <code>algorithm='ball_tree'</code>.</li>
+          <li>Centroid calculation by averaging member latitudes and longitudes.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- MATHEMATICAL FORMULATION BOX -->
+    <div class="callout purple">
+      <div class="callout-title">📐 Mathematical & Spatial Mechanics of DBSCAN</div>
+      <p style="font-size: 8.5pt; margin-bottom: 4px;">
+        Standard Euclidean distance (\(\sqrt{\Delta x^2 + \Delta y^2}\)) creates severe geographic distortion when applied to spherical GPS coordinates. The clustering service converts degrees to radians and applies the <strong>Great-Circle Haversine Formula</strong>:
+      </p>
+      <div style="background: #ffffff; padding: 6px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 8pt; border: 1px solid #e9d5ff; margin: 4px 0;">
+        d = 2R \cdot \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)}\right)
+      </div>
+      <p style="font-size: 8.2pt; color: #6b21a8; margin-top: 4px;">
+        With \(\epsilon = 50\text{ meters}\) and \(\text{MinSamples} = 2\), two reports within 50 meters of each other coalesce into a single municipal cluster. Single reports (noise / \(\text{label} = -1\)) are returned as distinct 1-member clusters to guarantee zero lost reports.
+      </p>
+    </div>
+
+    <!-- CLUSTERING SEQUENCE FLOW -->
+    <div class="diagram-container">
+      <div class="diagram-title">
+        <span>Clustering Execution & Persistence Lifecycle</span>
+        <span style="color:#94a3b8; font-size:7pt;">END-TO-END ASYNCHRONOUS PIPELINE</span>
+      </div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <span class="step-badge">STEP 1</span>
+          <span><strong>Citizen Submits Issue:</strong> <code>routes/issues.js</code> receives geotagged report, persists it to <code>issues</code> table, and triggers <code>recluster(category)</code> asynchronously (non-blocking HTTP response).</span>
+        </div>
+        <div class="flow-step">
+          <span class="step-badge">STEP 2</span>
+          <span><strong>Data Retrieval:</strong> <code>clusterService.js</code> queries all issues in the same category created within the last 30 days via <code>fetchIssuesForClustering()</code>.</span>
+        </div>
+        <div class="flow-step">
+          <span class="step-badge">STEP 3</span>
+          <span><strong>Microservice Call:</strong> Node.js POSTs coordinates array to <code>http://localhost:5001/cluster</code>. Python Flask passes data into <code>run_dbscan_clustering()</code>.</span>
+        </div>
+        <div class="flow-step">
+          <span class="step-badge">STEP 4</span>
+          <span><strong>Atomic DB Persistence:</strong> <code>clusterService.js</code> uses <code>withTransaction()</code> to upsert <code>issue_clusters</code> records and batch-update <code>issues.cluster_id</code>.</span>
+        </div>
+        <div class="flow-step">
+          <span class="step-badge">STEP 5</span>
+          <span><strong>Real-Time Broadcast:</strong> Node emits <code>cluster:updated</code> via Socket.io to all connected municipal dashboards and citizen map views.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 5: FRONTEND DEEP-DIVE ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">5</span> Frontend Architecture & UI Component Map
+      </div>
+      <div class="section-badge">REACT 18 + VITE + LEAFLET</div>
+    </div>
+
+    <p>
+      The frontend (<code>/frontend</code>) is a modern Single Page Application styled with custom glassmorphism design tokens and dark-mode themes in vanilla CSS. It features an offline-resilient API layer that seamlessly switches to in-memory mock data if the backend is disconnected.
+    </p>
+
+    <h3>Application Pages & Views</h3>
+    <div class="card-grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">pages/LiveMap.jsx</span>
+          <span class="tag tag-blue">GIS Map</span>
+        </div>
+        <p><strong>Description:</strong> Interactive Leaflet map powered by CartoDB dark tiles. Renders cluster markers with dynamic sizing based on member count, category icons, category/status filters, and a synchronized sidebar list.</p>
+        <p><strong>Key Features:</strong> Radius circles for clusters, popup inspectors, fly-to bounds navigation, and instant upvoting.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">pages/ReportIssue.jsx</span>
+          <span class="tag tag-blue">Reporting Form</span>
+        </div>
+        <p><strong>Description:</strong> Citizen issue submission workflow. Captures user GPS via browser Geolocation API, allows manual map pin placement, performs auto-reverse-geocoding, and accepts photo uploads.</p>
+        <p><strong>Duplicate Detection:</strong> Checks coordinates against existing clusters and alerts the citizen with a direct upvote option before creating a duplicate.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">pages/AdminDashboard.jsx</span>
+          <span class="tag tag-blue">Triage Portal</span>
+        </div>
+        <p><strong>Description:</strong> Operational control center for municipal officers and administrators. Provides tabular and card-based cluster triaging, department assignment dropdowns, status progression actions, and CSV export.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">pages/Analytics.jsx</span>
+          <span class="tag tag-blue">Analytics</span>
+        </div>
+        <p><strong>Description:</strong> Executive metrics dashboard powered by Chart.js. Renders Doughnut charts for category distribution, Bar charts for top ward complaints, resolution SLA timers, and duplicate reduction indicators.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">pages/MyReports.jsx</span>
+          <span class="tag tag-blue">Citizen View</span>
+        </div>
+        <p><strong>Description:</strong> Personal tracking feed showing all grievances reported by the logged-in citizen. Displays cluster status badges, municipal department assignments, and timeline audit logs.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">pages/AuthPage.jsx</span>
+          <span class="tag tag-blue">Authentication</span>
+        </div>
+        <p><strong>Description:</strong> Tabbed Login and Registration interface with quick-login buttons for demo personas (Super Admin, Municipal Officer, Citizen Rahul).</p>
+      </div>
+    </div>
+
+    <h3>Core Components & State Management</h3>
+    <div class="card-grid-3">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">AuthContext.jsx</span>
+          <span class="tag tag-blue">State</span>
+        </div>
+        <p style="font-size: 8pt;">
+          Stores authenticated user profile, access tokens, and exports <code>useAuth()</code> hook with role boolean helpers (<code>isAdmin</code>, <code>isDeptOfficer</code>, <code>isCitizen</code>) and instant role switching.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">services/api.js</span>
+          <span class="tag tag-blue">Client API</span>
+        </div>
+        <p style="font-size: 8pt;">
+          Unified Axios client with automatic Bearer token injection. Contains a full in-memory fallback engine with Haversine distance calculator and mock data synchronizer for offline demo reliability.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">IssueDetailModal.jsx</span>
+          <span class="tag tag-blue">UI Component</span>
+        </div>
+        <p style="font-size: 8pt;">
+          Modal dialog showing photo preview, location map, sibling reports in the same cluster, status transition buttons, notes input, and an immutable audit timeline.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 6: INTER-FILE RELATIONSHIPS & ER DIAGRAM ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">6</span> Inter-File Dependencies & Relational Model
+      </div>
+      <div class="section-badge">SYSTEM INTEGRATION MAP</div>
+    </div>
+
+    <p>
+      Understanding how files import, invoke, and depend on each other is crucial for maintaining and scaling the platform.
+    </p>
+
+    <!-- DEPENDENCY MATRIX TABLE -->
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">Source File</th>
+          <th style="width: 35%;">Direct File Dependencies & Imports</th>
+          <th style="width: 40%;">Interaction Mechanism & Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>backend/src/index.js</code></td>
+          <td><code>socketService.js</code>, <code>routes/auth.js</code>, <code>routes/issues.js</code>, <code>routes/departments.js</code>, <code>routes/analytics.js</code></td>
+          <td>Initializes WebSocket server and mounts REST endpoints at <code>/api/*</code>.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/routes/issues.js</code></td>
+          <td><code>db/pool.js</code>, <code>middleware/auth.js</code>, <code>middleware/upload.js</code>, <code>services/nominatimService.js</code>, <code>services/clusterService.js</code>, <code>services/socketService.js</code></td>
+          <td>Handles multipart payloads, validates JWTs, reverse geocodes coordinates, executes SQL queries, and triggers clustering.</td>
+        </tr>
+        <tr>
+          <td><code>backend/src/services/clusterService.js</code></td>
+          <td><code>db/pool.js</code>, <code>services/socketService.js</code>, <code>clustering/app.py</code> (HTTP)</td>
+          <td>Pulls recent issues from DB, sends payload to Python Flask microservice, and persists clusters within SQL transactions.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/App.jsx</code></td>
+          <td><code>context/AuthContext.jsx</code>, <code>components/Navbar.jsx</code>, <code>pages/LiveMap.jsx</code>, <code>pages/ReportIssue.jsx</code>, <code>pages/AdminDashboard.jsx</code>, <code>pages/Analytics.jsx</code>, <code>pages/MyReports.jsx</code>, <code>pages/AuthPage.jsx</code></td>
+          <td>Wraps all routes in <code>AuthProvider</code> and renders navigation shell.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/pages/LiveMap.jsx</code></td>
+          <td><code>services/api.js</code>, <code>components/IssueCard.jsx</code>, <code>components/IssueDetailModal.jsx</code>, <code>context/AuthContext.jsx</code></td>
+          <td>Fetches clusters and issues from API client, binds Leaflet markers, and opens detail inspector modals.</td>
+        </tr>
+        <tr>
+          <td><code>frontend/src/services/api.js</code></td>
+          <td><code>mockData.js</code>, <code>backend/src/routes/*</code> (HTTP)</td>
+          <td>Attempts HTTP requests to backend; intercepts failures and routes queries through in-memory mock datasets.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- DATABASE ER DIAGRAM -->
+    <div class="diagram-container">
+      <div class="diagram-title">
+        <span>Relational Database Entity-Relationship (ER) Schema</span>
+        <span style="color:#94a3b8; font-size:7pt;">POSTGRESQL RELATIONAL CONSTRAINTS</span>
+      </div>
+      <svg width="100%" height="210" viewBox="0 0 760 210" xmlns="http://www.w3.org/2000/svg" style="font-family:'Inter', sans-serif;">
+        <!-- Entity: DEPARTMENTS -->
+        <rect x="20" y="20" width="160" height="75" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="1.2"/>
+        <text x="30" y="38" fill="#38bdf8" font-size="9.5" font-weight="700">DEPARTMENTS</text>
+        <text x="30" y="54" fill="#cbd5e1" font-size="8">🔑 id (UUID, PK)</text>
+        <text x="30" y="68" fill="#cbd5e1" font-size="8">📄 name, contact_email</text>
+        <text x="30" y="82" fill="#94a3b8" font-size="7.5">created_at</text>
+
+        <!-- Entity: USERS -->
+        <rect x="20" y="115" width="160" height="85" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="1.2"/>
+        <text x="30" y="133" fill="#38bdf8" font-size="9.5" font-weight="700">USERS</text>
+        <text x="30" y="149" fill="#cbd5e1" font-size="8">🔑 id (UUID, PK)</text>
+        <text x="30" y="163" fill="#cbd5e1" font-size="8">🔗 department_id (FK)</text>
+        <text x="30" y="177" fill="#cbd5e1" font-size="8">👤 name, email, role</text>
+        <text x="30" y="191" fill="#94a3b8" font-size="7.5">password_hash</text>
+
+        <!-- Entity: ISSUE_CLUSTERS -->
+        <rect x="250" y="20" width="230" height="95" rx="6" fill="#1e293b" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="260" y="38" fill="#c084fc" font-size="9.5" font-weight="700">ISSUE_CLUSTERS</text>
+        <text x="260" y="54" fill="#cbd5e1" font-size="8">🔑 id (UUID, PK)</text>
+        <text x="260" y="68" fill="#cbd5e1" font-size="8">🔗 assigned_department_id (FK)</text>
+        <text x="260" y="82" fill="#cbd5e1" font-size="8">📍 centroid_lat, centroid_lng</text>
+        <text x="260" y="96" fill="#cbd5e1" font-size="8">🏷️ category, member_count, status</text>
+        <text x="260" y="108" fill="#94a3b8" font-size="7">created_at, updated_at</text>
+
+        <!-- Entity: ISSUES -->
+        <rect x="250" y="125" width="230" height="75" rx="6" fill="#1e293b" stroke="#34d399" stroke-width="1.2"/>
+        <text x="260" y="143" fill="#34d399" font-size="9.5" font-weight="700">ISSUES</text>
+        <text x="260" y="159" fill="#cbd5e1" font-size="8">🔑 id (UUID, PK) | 🔗 user_id, cluster_id (FK)</text>
+        <text x="260" y="173" fill="#cbd5e1" font-size="8">📍 latitude, longitude, ward, category</text>
+        <text x="260" y="187" fill="#cbd5e1" font-size="8">📷 photo_url, upvote_count, status</text>
+
+        <!-- Entity: STATUS_LOGS -->
+        <rect x="545" y="20" width="195" height="85" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="555" y="38" fill="#fbbf24" font-size="9.5" font-weight="700">STATUS_LOGS</text>
+        <text x="555" y="54" fill="#cbd5e1" font-size="8">🔑 id (UUID, PK)</text>
+        <text x="555" y="68" fill="#cbd5e1" font-size="8">🔗 issue_id, changed_by (FK)</text>
+        <text x="555" y="82" fill="#cbd5e1" font-size="8">🔄 old_status → new_status</text>
+        <text x="555" y="96" fill="#94a3b8" font-size="7.5">note, changed_at</text>
+
+        <!-- Entity: UPVOTES & TOKENS -->
+        <rect x="545" y="115" width="195" height="85" rx="6" fill="#1e293b" stroke="#f43f5e" stroke-width="1.2"/>
+        <text x="555" y="133" fill="#fb7185" font-size="9.5" font-weight="700">UPVOTES & REFRESH_TOKENS</text>
+        <text x="555" y="149" fill="#cbd5e1" font-size="8">🔑 upvotes (user_id, issue_id) PK</text>
+        <text x="555" y="163" fill="#cbd5e1" font-size="8">🔑 refresh_tokens (id, user_id FK)</text>
+        <text x="555" y="177" fill="#cbd5e1" font-size="8">🔒 token_hash, expires_at</text>
+        <text x="555" y="191" fill="#94a3b8" font-size="7.5">prevents double-voting & secures sessions</text>
+
+        <!-- Relationship Lines -->
+        <path d="M 180 50 L 250 50" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
+        <path d="M 100 95 L 100 115" stroke="#38bdf8" stroke-width="1.5"/>
+        <path d="M 365 115 L 365 125" stroke="#a78bfa" stroke-width="1.5"/>
+        <path d="M 480 150 L 545 60" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="2,2"/>
+        <path d="M 480 165 L 545 155" stroke="#f43f5e" stroke-width="1.5"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 7: KEY WORKFLOWS & CONFIGURATION ==================== -->
+  <div class="page">
+    <div class="section-header">
+      <div class="section-title">
+        <span class="sec-num">7</span> Execution Workflows & Environment Setup
+      </div>
+      <div class="section-badge">OPERATIONAL GUIDE</div>
+    </div>
+
+    <h3>1. Triaging & Status Resolution Lifecycle</h3>
+    <p>
+      When a civic issue is reported, it follows a strict state transition machine enforced by backend route validation:
+    </p>
+
+    <div style="display: flex; gap: 6px; align-items: center; margin: 10px 0; justify-content: space-between;">
+      <div style="flex: 1; background: #fef3c7; border: 1px solid #f59e0b; padding: 6px; border-radius: 6px; text-align: center;">
+        <span style="font-weight: 700; color: #b45309; font-size: 8pt;">1. REPORTED</span>
+        <div style="font-size: 7pt; color: #78350f;">Citizen submissions</div>
+      </div>
+      <span style="font-weight: 700; color: #94a3b8;">➔</span>
+      <div style="flex: 1; background: #e0f2fe; border: 1px solid #0284c7; padding: 6px; border-radius: 6px; text-align: center;">
+        <span style="font-weight: 700; color: #0369a1; font-size: 8pt;">2. ASSIGNED</span>
+        <div style="font-size: 7pt; color: #075985;">Admin sets Department</div>
+      </div>
+      <span style="font-weight: 700; color: #94a3b8;">➔</span>
+      <div style="flex: 1; background: #f3e8ff; border: 1px solid #8b5cf6; padding: 6px; border-radius: 6px; text-align: center;">
+        <span style="font-weight: 700; color: #6d28d9; font-size: 8pt;">3. IN PROGRESS</span>
+        <div style="font-size: 7pt; color: #5b21b6;">Field crew deployed</div>
+      </div>
+      <span style="font-weight: 700; color: #94a3b8;">➔</span>
+      <div style="flex: 1; background: #dcfce7; border: 1px solid #10b981; padding: 6px; border-radius: 6px; text-align: center;">
+        <span style="font-weight: 700; color: #15803d; font-size: 8pt;">4. RESOLVED</span>
+        <div style="font-size: 7pt; color: #14532d;">Fixed + Verified</div>
+      </div>
+    </div>
+
+    <h3>2. Authentication & JWT Rotation Workflow</h3>
+    <p>
+      The authentication subsystem uses short-lived JWT Access Tokens (15-minute lifespan) paired with cryptographically secure, SHA-256 hashed Refresh Tokens stored in HTTP-Only, SameSite cookies (7-day lifespan).
+    </p>
+
+    <div class="card-grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Token Issuance (Login)</span>
+          <span class="tag tag-green">Security</span>
+        </div>
+        <p style="font-size: 8.2pt;">
+          Upon login, <code>routes/auth.js</code> issues a signed JWT containing <code>sub (user.id)</code>, <code>role</code>, and <code>department_id</code>. A random 48-byte hex string is generated, hashed with SHA-256, and stored in <code>refresh_tokens</code> while the raw string is placed in a secure cookie.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Silent Token Refresh</span>
+          <span class="tag tag-green">Security</span>
+        </div>
+        <p style="font-size: 8.2pt;">
+          When an access token expires, frontend Axios interceptor hits <code>POST /api/auth/refresh</code>. The backend verifies the cookie token hash against the database, confirms non-expiry, and returns a fresh 15-minute access token without requiring user re-authentication.
+        </p>
+      </div>
+    </div>
+
+    <h3>3. Environment Variables & Port Allocations</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Port</th>
+          <th>Variable Name</th>
+          <th>Default / Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Frontend</strong></td>
+          <td><code>5173</code></td>
+          <td><code>VITE_API_URL</code></td>
+          <td><code>http://localhost:3000/api</code> — Target Node.js gateway API.</td>
+        </tr>
+        <tr>
+          <td><strong>Backend</strong></td>
+          <td><code>3000</code></td>
+          <td><code>DATABASE_URL</code></td>
+          <td><code>postgresql://user:pass@localhost:5432/crowdsourced</code></td>
+        </tr>
+        <tr>
+          <td><strong>Backend</strong></td>
+          <td><code>3000</code></td>
+          <td><code>JWT_SECRET</code></td>
+          <td>Secret key for signing 15-minute JSON Web Tokens.</td>
+        </tr>
+        <tr>
+          <td><strong>Backend</strong></td>
+          <td><code>3000</code></td>
+          <td><code>CLUSTERING_SERVICE_URL</code></td>
+          <td><code>http://localhost:5001</code> — Target Python DBSCAN Flask service.</td>
+        </tr>
+        <tr>
+          <td><strong>Clustering</strong></td>
+          <td><code>5001</code></td>
+          <td><code>DBSCAN_EPS_METERS</code></td>
+          <td><code>50.0</code> — Maximum spatial radius in meters to form a cluster.</td>
+        </tr>
+        <tr>
+          <td><strong>Clustering</strong></td>
+          <td><code>5001</code></td>
+          <td><code>DBSCAN_MIN_SAMPLES</code></td>
+          <td><code>2</code> — Minimum report count required to form a dense cluster.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer-note">
+      CrowdSourced Civic Portal — Technical Architecture Documentation & File Mapping Reference Manual.
+    </div>
+  </div>
+
+</body>
+</html>
+"""
+
+with open("doc.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+print("Generated doc.html")
+
+chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+pdf_path = "/Users/kshitizbhadra/CrowdSourced/CrowdSourced_System_Architecture_and_Files_Guide.pdf"
+cwd = os.path.abspath(".")
+html_file_url = f"file://{cwd}/doc.html"
+
+cmd = [
+    chrome_path,
+    "--headless",
+    "--disable-gpu",
+    f"--print-to-pdf={pdf_path}",
+    "--no-pdf-header-footer",
+    html_file_url
+]
+
+res = subprocess.run(cmd, capture_output=True, text=True)
+print("Chrome return code:", res.returncode)
+print("PDF created at:", pdf_path)
